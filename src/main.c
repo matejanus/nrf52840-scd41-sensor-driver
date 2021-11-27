@@ -4,6 +4,7 @@
 #include "bsp/i2c_driver.h"
 #include "scd41/scd41.h"
 
+static volatile int32_t avgCo2 = 600; // initial value 
 void main(void)
 {
 	i2c_driver_init();
@@ -29,6 +30,12 @@ void main(void)
 		printk("co2 %d\n", co2);
 		printk("temperature %d\n",   temperature);
 		printk("humidity %d\n", humidity);
+		if(co2 > 0)
+		{
+			avgCo2 = 0.9 * avgCo2 + 0.1 * co2;
+		}
+		printk("moving average co2 %d\n", avgCo2);
+
 		k_sleep(K_SECONDS(5U));
 	}
 }
