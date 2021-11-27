@@ -9,7 +9,14 @@ void main(void)
 {
 	i2c_driver_init();
 	printk("Starting i2c scanner...\n");
-	k_sleep(K_MSEC(1U));
+	k_sleep(K_MSEC(100U));
+
+	scd41_wake_up();
+	k_sleep(K_MSEC(100U));
+	scd41_stop_periodic_measurement();
+	k_sleep(K_MSEC(500U));
+	scd41_reinit();
+	k_sleep(K_MSEC(100U));
 
 	uint16_t s0 = 0;
 	uint16_t s1 = 0; 
@@ -20,11 +27,12 @@ void main(void)
 	printk("s0: %d s1: %d s2: %d\n", s0, s1, s2);
 
 	scd41_start_periodic_measurement();
+	k_sleep(K_SECONDS(5U));
 
 	while(1)
 	{
 		uint16_t co2 = 0;
-		uint16_t temperature = 0;
+		uint32_t temperature = 0;
 		uint16_t humidity = 0;
 		scd41_get_measures(&co2, &temperature, &humidity);
 		printk("co2 %d\n", co2);

@@ -2,8 +2,6 @@
 #include <drivers/i2c.h>
 #include <device.h>
 
-#define FRAM_I2C_ADDR	0x62
-
 #define SCD41_I2C_ADDR	0x62
 
 int i2c_driver_init(void);
