@@ -4,9 +4,10 @@
 #include "bsp/i2c_driver.h"
 #include "scd41/scd41.h"
 
-#define MOVING_AVERAGE_WINDOW_SIZE 5u
+#define MOVING_AVERAGE_WINDOW_SIZE (10u)
+#define HUMIDITY_THRESHOLD (60u)
 
-static int movingAvg(int *ptrArrNumbers, uint32_t *ptrSum, size_t pos, uint16_t nextNum)
+static int32_t movingAvg(int *ptrArrNumbers, uint32_t *ptrSum, size_t pos, uint16_t nextNum)
 {
 	*ptrSum = *ptrSum - ptrArrNumbers[pos] + nextNum;
 	ptrArrNumbers[pos] = nextNum;
@@ -37,26 +38,37 @@ void main(void)
 
 	scd41_start_periodic_measurement();
 
-	uint32_t co2Array[5] = {0};
+	uint32_t co2AvgArray[MOVING_AVERAGE_WINDOW_SIZE] = {0};
+	uint32_t temperatureAvgArray[MOVING_AVERAGE_WINDOW_SIZE] = {0};
+	uint32_t humidityAvgArray[MOVING_AVERAGE_WINDOW_SIZE] = {0};
+
 	size_t pos = 0;
-	int co2Avg = 0;
-	int sum = 0;
+	int32_t co2Avg = 0;
+	int32_t temperatureAvg = 0;
+	int32_t humidityAvg = 0;
+
+	int co2Sum = 0;
+	int temperatureSum = 0;
+	int humiditySum = 0;
+
 	bool moving_averge_filled = false;
 
 	while (1)
 	{
-		uint16_t co2 = 0;
-		uint32_t temperature = 0;
-		uint16_t humidity = 0;
+		uint16_t co2Sample = 0;
+		uint16_t temperatureSample = 0;
+		uint16_t humiditySample = 0;
 		k_sleep(K_SECONDS(5U));
-		scd41_get_measures(&co2, &temperature, &humidity);
-		printk("co2 %d\n", co2);
-		printk("temperature %d\n", temperature);
-		printk("humidity %d\n", humidity);
+		int16_t rc = scd41_get_measures(&co2Sample, &temperatureSample, &humiditySample);
+		printk("co2 sample %d\n", co2Sample);
+		printk("temperature sample %d\n", temperatureSample);
+		printk("humidity sample %d\n", humiditySample);
 
-		if (co2 > 0)
+		if (rc == 0)
 		{
-			co2Avg = movingAvg(co2Array, &sum, pos, co2);
+			co2Avg = movingAvg(co2AvgArray, &co2Sum, pos, co2Sample);
+			temperatureAvg = movingAvg(temperatureAvgArray, &temperatureSum, pos, temperatureSample);
+			humidityAvg = movingAvg(humidityAvgArray, &humiditySum, pos, humiditySample);
 		}
 
 		pos++;
@@ -66,6 +78,31 @@ void main(void)
 			pos = 0;
 		}
 		if (moving_averge_filled)
-			printk("moving average co2 %d\n", co2Avg);
+		{
+			// printk("average temperature value: %d\n", temperatureAvg);
+
+			if(humidityAvg >= (HUMIDITY_THRESHOLD - 2)  && humidityAvg <= (HUMIDITY_THRESHOLD + 2))
+			{
+				printk("Humidity threshold reached. Checking temperature trend\n");
+
+				if (temperatureSample < temperatureAvg)
+				{
+					printk("Temperature dropping\n");
+					printk("Report to HVAC controller to heat up\n");
+				}
+				else
+				{
+					printk("Temperature rising\n");
+					printk("co2 concentration: %d\n", co2Avg);
+					printk("humidity value: %d\n", humidityAvg);
+
+					printk("if trend is rising report that mold is growing\n");
+				}
+			}
+			else
+			{
+				printk("Low humidity value %d, no mold grow possible\n", humidityAvg);
+			}
+		}
 	}
 }

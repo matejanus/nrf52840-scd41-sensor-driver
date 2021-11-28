@@ -99,7 +99,7 @@ int16_t scd41_stop_periodic_measurement(void)
     return i2c_driver_write_bytes(0x3F86);
 }
 
-int16_t scd41_get_measures(uint16_t *co2, uint32_t *temperature, uint16_t *humidity)
+int16_t scd41_get_measures(uint16_t *co2, uint16_t *temperature, uint16_t *humidity)
 {
     uint8_t data[9] = {0};
     int rc = i2c_driver_read_bytes(0xec05, data, 9);
